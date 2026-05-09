@@ -19,6 +19,10 @@ jobs:
     - name: Install JDK
       run: sudo apt install default-jdk
 
+    - name: Patch
+      run: |
+        sed -i '1a\#include <stdexcept>' libzt/ext/ZeroTierOne/ext/prometheus-cpp-lite-1.0/core/include/prometheus/family.h
+
     - name: Build
       working-directory: libzt
       run: ./build.sh host-jar "release"
