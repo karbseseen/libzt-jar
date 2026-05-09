@@ -23,11 +23,18 @@ jobs:
     - name: Patch
       shell: pwsh
       run: |
-        $file = "libzt/ext/ZeroTierOne/ext/prometheus-cpp-lite-1.0/core/include/prometheus/family.h"
-        $content = Get-Content -Path $file
-        if ($content -notcontains "#include <stdexcept>") {
-          $patched = @($content[0], "#include <stdexcept>") + $content[1..($content.Length - 1)]
-          Set-Content -Path $file -Value $patched
+        $prometheusFile = "libzt/ext/ZeroTierOne/ext/prometheus-cpp-lite-1.0/core/include/prometheus/family.h"
+        $prometheusContent = Get-Content -Path $prometheusFile
+        if ($prometheusContent -notcontains "#include <stdexcept>") {
+          $patched = @($prometheusContent[0], "#include <stdexcept>") + $prometheusContent[1..($prometheusContent.Length - 1)]
+          Set-Content -Path $prometheusFile -Value $patched
+        }
+
+        $javaBindingFile = "libzt/src/bindings/java/JavaSockets.cxx"
+        $javaBindingContent = Get-Content -Path $javaBindingFile -Raw
+        $javaBindingPatched = $javaBindingContent.Replace("sin_addr.s_addr", "sin_addr")
+        if ($javaBindingPatched -ne $javaBindingContent) {
+          Set-Content -Path $javaBindingFile -Value $javaBindingPatched
         }
 
     - name: Build
@@ -41,7 +48,7 @@ jobs:
         $sourceTree = "$jarDir/com/zerotier/sockets"
         $version = (git describe --tags --abbrev=0).Trim()
 
-        cmake -S . -B $cacheDir -G "Visual Studio 17 2022" -A x64 -DZTS_ENABLE_JAVA=True
+        cmake -S . -B $cacheDir -G "Visual Studio 17 2022" -A x64 -DZTS_ENABLE_JAVA=True "-DCMAKE_CXX_FLAGS=/DOMIT_JSON_SUPPORT=1"
         cmake --build $cacheDir --config $buildType
 
         New-Item -ItemType Directory -Force -Path $sourceTree | Out-Null
