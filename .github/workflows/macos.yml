@@ -22,7 +22,9 @@ jobs:
 
     - name: Patch
       run: |
-        sed -i '1a\#include <stdexcept>' libzt/ext/ZeroTierOne/ext/prometheus-cpp-lite-1.0/core/include/prometheus/family.h
+        sed -i '' '1a\
+        #include <stdexcept>
+        ' libzt/ext/ZeroTierOne/ext/prometheus-cpp-lite-1.0/core/include/prometheus/family.h
 
     - name: Build
       working-directory: libzt
