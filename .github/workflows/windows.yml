@@ -1,0 +1,64 @@
+name: Build windows
+
+on:
+  push:
+
+jobs:
+  build:
+    runs-on: windows-2022
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Checkout submodules
+      run: git submodule update --init --recursive
+
+    - name: Install JDK
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: "17"
+
+    - name: Patch
+      shell: pwsh
+      run: |
+        $file = "libzt/ext/ZeroTierOne/ext/prometheus-cpp-lite-1.0/core/include/prometheus/family.h"
+        $content = Get-Content -Path $file
+        if ($content -notcontains "#include <stdexcept>") {
+          $patched = @($content[0], "#include <stdexcept>") + $content[1..($content.Length - 1)]
+          Set-Content -Path $file -Value $patched
+        }
+
+    - name: Build
+      shell: pwsh
+      working-directory: libzt
+      run: |
+        $buildType = "Release"
+        $cacheDir = "cache/win-x64-jar-release"
+        $distDir = "dist/win-x64-jar-release/pkg"
+        $jarDir = "$cacheDir/pkg/jar"
+        $sourceTree = "$jarDir/com/zerotier/sockets"
+        $version = (git describe --tags --abbrev=0).Trim()
+
+        cmake -S . -B $cacheDir -G "Visual Studio 17 2022" -A x64 -DZTS_ENABLE_JAVA=True
+        cmake --build $cacheDir --config $buildType
+
+        New-Item -ItemType Directory -Force -Path $sourceTree | Out-Null
+        Copy-Item "src/bindings/java/com/zerotier/sockets/*.java" $sourceTree -Force
+        Copy-Item "$cacheDir/lib/$buildType/zt-shared.dll" "$jarDir/zt.dll" -Force
+
+        Push-Location $jarDir
+        $env:JAVA_TOOL_OPTIONS = "-Dfile.encoding=UTF8"
+        javac -Xlint:all com/zerotier/sockets/*.java
+        jar cf "libzt-$version.jar" zt.dll com/zerotier/sockets/*.class
+        Pop-Location
+
+        New-Item -ItemType Directory -Force -Path $distDir | Out-Null
+        Move-Item "$jarDir/libzt-*.jar" $distDir -Force
+
+    - name: Save
+      uses: actions/upload-artifact@v7
+      with:
+        archive: false
+        path: libzt/dist/win-x64-jar-release/pkg/*.jar
