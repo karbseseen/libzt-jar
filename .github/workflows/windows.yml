@@ -37,6 +37,13 @@ jobs:
           Set-Content -Path $javaBindingFile -Value $javaBindingPatched
         }
 
+        $buildScriptFile = "libzt/build.ps1"
+        $buildScriptContent = Get-Content -Path $buildScriptFile -Raw
+        $buildScriptPatched = $buildScriptContent.Replace("Visual Studio 16 2019", "Visual Studio 17 2022")
+        if ($buildScriptPatched -ne $buildScriptContent) {
+          Set-Content -Path $buildScriptFile -Value $buildScriptPatched
+        }
+
     - name: Build
       shell: pwsh
       working-directory: libzt
